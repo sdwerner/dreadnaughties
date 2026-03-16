@@ -12,10 +12,14 @@ export function Shipyard() {
 
   const activeAlpha = useGameStore((state) => state.getActiveStats().alpha);
   const activeBeta = useGameStore((state) => state.getActiveStats().beta);
-  
-  const theoreticalMean = calculateTheoreticalWinProbability(activeAlpha, activeBeta).result;
-  const discreteWinRate = calculateDiscreteWinProbability(activeAlpha, activeBeta);
+  // Strike Success: My Alpha vs Baseline Enemy Beta (1)
+  const strikeSuccessDiscrete = calculateDiscreteWinProbability(activeAlpha, 1);
+  const strikeSuccessLimit = calculateTheoreticalWinProbability(activeAlpha, 1).result;
 
+  // Survival Rate: Baseline Enemy Alpha (1) vs My Beta
+  // (1 minus the enemy's chance to win against me)
+  const survivalRateDiscrete = 1 - calculateDiscreteWinProbability(1, activeBeta);
+  const survivalRateLimit = 1 - calculateTheoreticalWinProbability(1, activeBeta).result;
   return (
     <div className="w-full max-w-4xl mx-auto p-6 bg-white dark:bg-[#16171d] rounded-xl shadow-xl border border-gray-200 dark:border-gray-800">
       <div className="flex flex-col md:flex-row gap-8">
@@ -40,15 +44,26 @@ export function Shipyard() {
             </div>
           </div>
           
-          <div className="p-4 bg-purple-50 dark:bg-purple-900/20 rounded-lg border border-purple-100 dark:border-purple-800/30">
-             <div className="text-sm font-medium text-purple-600 dark:text-purple-400">5-Round Win Rate</div>
-             <div className="text-4xl font-bold text-purple-700 dark:text-purple-300">{(discreteWinRate * 100).toFixed(1)}%</div>
-             <div className="text-xs text-purple-500 mt-1">(&gt;= 3 Red balls drawn)</div>
-             
-             <div className="mt-4 pt-4 border-t border-purple-200 dark:border-purple-800/50">
-               <div className="text-xs font-medium text-gray-500 dark:text-gray-400">Theoretical Beta Mean (∞ Rounds)</div>
-               <div className="text-lg font-semibold text-gray-700 dark:text-gray-300">{(theoreticalMean * 100).toFixed(1)}%</div>
-             </div>
+          <div className="space-y-4">
+            <div className="p-4 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-100 dark:border-red-800/30">
+               <div className="text-sm font-medium text-red-600 dark:text-red-400">Strike Success (Offense)</div>
+               <div className="text-4xl font-bold text-red-700 dark:text-red-300">{(strikeSuccessDiscrete * 100).toFixed(1)}%</div>
+               <div className="text-xs text-red-500 mt-1">vs Baseline Enemy Armor (1 Beta)</div>
+               
+               <div className="mt-3 pt-3 border-t border-red-200 dark:border-red-800/50">
+                 <div className="text-xs font-medium text-gray-500 dark:text-gray-400">Limit Mean: {(strikeSuccessLimit * 100).toFixed(1)}%</div>
+               </div>
+            </div>
+
+            <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-100 dark:border-blue-800/30">
+               <div className="text-sm font-medium text-blue-600 dark:text-blue-400">Survival Rate (Defense)</div>
+               <div className="text-4xl font-bold text-blue-700 dark:text-blue-300">{(survivalRateDiscrete * 100).toFixed(1)}%</div>
+               <div className="text-xs text-blue-500 mt-1">vs Baseline Enemy Firepower (1 Alpha)</div>
+               
+               <div className="mt-3 pt-3 border-t border-blue-200 dark:border-blue-800/50">
+                 <div className="text-xs font-medium text-gray-500 dark:text-gray-400">Limit Mean: {(survivalRateLimit * 100).toFixed(1)}%</div>
+               </div>
+            </div>
           </div>
         </div>
 

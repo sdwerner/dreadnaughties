@@ -112,10 +112,11 @@ function calculatePolyaUrnProbabilityExact(alpha, beta, n, k) {
 
 function factorialize(num) {
   if (num === 0 || num === 1) return 1;
+  let result = num;
   for (let i = num - 1; i >= 1; i--) {
-    num *= i;
+    result *= i;
   }
-  return num;
+  return result;
 }
 
 export function getStatContributionBreakdown(baseAlpha, baseBeta, equippedComponents) {

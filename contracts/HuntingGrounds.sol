@@ -2,13 +2,18 @@
 pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
+
+interface IOptionsMarket {
+    function resolveMarket(uint256 battleId, uint256 finalRed, uint256 finalBlue) external;
+}
 
 /**
  * @title HuntingGrounds
  * @dev The core combat engine for Dreadnaughties. 
  * Implements the N-round Polya Urn state space drawing to resolve attacks on the Open Sea.
  */
-contract HuntingGrounds is ReentrancyGuard {
+contract HuntingGrounds is ReentrancyGuard, Ownable {
 
     struct Urn {
         uint256 redBalls;   // Alpha (Guns)
@@ -35,9 +40,16 @@ contract HuntingGrounds is ReentrancyGuard {
 
     mapping(uint256 => BattleRecord) public battles;
     uint256 public battleCounter;
+    address public optionsMarketAddress;
 
     event BattleInitiated(uint256 indexed battleId, address indexed attacker, address indexed defender);
     event BattleResolved(uint256 indexed battleId, bool attackerWon, uint256 finalRed, uint256 finalBlue);
+
+    constructor() Ownable(msg.sender) {}
+
+    function setOptionsMarket(address _optionsMarket) external onlyOwner {
+        optionsMarketAddress = _optionsMarket;
+    }
 
     /**
      * @notice Initiates a battle using a pseudo-random Polya Urn simulation.
@@ -130,6 +142,10 @@ contract HuntingGrounds is ReentrancyGuard {
                 (bool success, ) = payable(_defender).call{value: reward}("");
                 require(success, "Transfer failed");
             }
+        }
+
+        if (optionsMarketAddress != address(0)) {
+            IOptionsMarket(optionsMarketAddress).resolveMarket(currentBattleId, currentUrn.redBalls, currentUrn.blueBalls);
         }
 
         emit BattleResolved(currentBattleId, isVictory, currentUrn.redBalls, currentUrn.blueBalls);

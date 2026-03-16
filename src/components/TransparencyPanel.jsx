@@ -64,32 +64,33 @@ export function TransparencyPanel() {
         {/* Right Col: PDF Math */}
         <div className="space-y-6">
           <div>
-            <h3 className="text-slate-400 mb-2 uppercase tracking-wide text-xs">Infinite Limit Mean</h3>
+            <h3 className="text-slate-400 mb-2 uppercase tracking-wide text-xs">Offensive Limit Math (Strike Success)</h3>
             <div className="bg-slate-800 bg-opacity-50 rounded p-3 space-y-2 border border-slate-700/50">
-              <div className="text-purple-400">{winProb.equation}</div>
-              <div className="text-slate-500">{winProb.steps}</div>
+              <div className="text-purple-400">mean = {activeAlpha} / ({activeAlpha} + 1)</div>
               <div className="border-t border-slate-700/50 mt-2 pt-2 flex justify-between">
-                <span className="text-slate-200">Limit Roll Mean</span>
-                <span className="text-purple-400 font-bold">{winProb.result.toFixed(4)}</span>
+                <span className="text-slate-200">Strike Limit Roll Mean</span>
+                <span className="text-purple-400 font-bold">{(activeAlpha / (activeAlpha + 1)).toFixed(4)}</span>
               </div>
             </div>
           </div>
 
           <div>
-            <h3 className="text-slate-400 mb-2 uppercase tracking-wide text-xs">Infinite Limit Variance</h3>
+            <h3 className="text-slate-400 mb-2 uppercase tracking-wide text-xs">Defensive Limit Math (Survival Rate)</h3>
             <div className="bg-slate-800 bg-opacity-50 rounded p-3 space-y-2 border border-slate-700/50">
-              <div className="text-orange-400 overflow-x-auto whitespace-nowrap pb-1 no-scrollbar">{variance.equation}</div>
-              <div className="text-slate-500 overflow-x-auto whitespace-nowrap pb-1 no-scrollbar">{variance.steps}</div>
+              <div className="text-orange-400">mean = 1 - (1 / (1 + {activeBeta}))</div>
               <div className="border-t border-slate-700/50 mt-2 pt-2 flex justify-between">
-                <span className="text-slate-200">Limit Standard Dev (σ)</span>
-                <span className="text-orange-400 font-bold">{Math.sqrt(variance.result).toFixed(4)}</span>
+                <span className="text-slate-200">Survival Limit Roll Mean</span>
+                <span className="text-orange-400 font-bold">{(1 - (1 / (1 + activeBeta))).toFixed(4)}</span>
               </div>
             </div>
           </div>
           
           <div className="bg-slate-800/80 rounded p-4 border border-indigo-500/30 shadow-[0_0_15px_rgba(99,102,241,0.1)]">
-             <div className="text-xs text-indigo-400 uppercase tracking-widest mb-1">Combat Resolution</div>
-             <p className="text-slate-300">Success requires <span className="text-green-400 font-bold">&gt;= 3 Red Balls</span> drawn from 5 rounds of the Polya Urn, which conceptually approximates drawing <span className="text-green-400 font-bold">&gt; 0.5000</span> from the <span className="text-indigo-300">Beta({activeAlpha}, {activeBeta})</span> PDF limit.</p>
+             <div className="text-xs text-indigo-400 uppercase tracking-widest mb-1">Combat Resolution Overview</div>
+             <p className="text-slate-300">
+               <span className="text-red-400 font-bold">Strike Success</span> simulates your Alpha vs Baseline Enemy Beta (1).<br/>
+               <span className="text-blue-400 font-bold">Survival Rate</span> simulates Baseline Enemy Alpha (1) vs your Beta.
+             </p>
           </div>
         </div>
       </div>
