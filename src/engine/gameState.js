@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { randomBeta, getBetaMean } from './betaDistribution';
+import { simulateCombatTurn } from './calculator';
 
 export const useGameStore = create((set, get) => ({
   // Base stats (1, 1 is a uniform distribution initially)
@@ -44,21 +44,10 @@ export const useGameStore = create((set, get) => ({
     const state = get();
     const { alpha, beta } = state.getActiveStats();
     
-    // Draw from distribution (result is between 0 and 1)
-    const roll = randomBeta(alpha, beta);
-    
-    // For our simplified battleship model, rolling > 0.5 is a "hit/victory", < 0.5 is "miss/defeat"
-    // In a full game, it would be compared to enemy's distribution or a threshold
-    const isVictory = roll > 0.5;
-
+    // Defer to the pure calculator engine
     const logEntry = {
       id: Date.now(),
-      alpha,
-      beta,
-      roll: roll.toFixed(3),
-      expectedMean: getBetaMean(alpha, beta).toFixed(3),
-      result: isVictory ? 'Victory' : 'Defeat',
-      timestamp: new Date().toLocaleTimeString()
+      ...simulateCombatTurn(alpha, beta)
     };
 
     set((state) => ({

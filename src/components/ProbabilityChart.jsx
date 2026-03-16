@@ -12,7 +12,7 @@ import {
   Legend,
 } from 'chart.js';
 import { Line } from 'react-chartjs-2';
-import { getBetaMean } from '../engine/betaDistribution';
+import { calculateTheoreticalWinProbability } from '../engine/calculator';
 
 ChartJS.register(
   CategoryScale,
@@ -36,7 +36,7 @@ function approximateBetaPDF(x, alpha, beta) {
 export function ProbabilityChart() {
   const alpha = useGameStore((state) => state.getActiveStats().alpha);
   const beta = useGameStore((state) => state.getActiveStats().beta);
-  const mean = getBetaMean(alpha, beta);
+  const mean = calculateTheoreticalWinProbability(alpha, beta).result;
 
   const data = useMemo(() => {
     const labels = [];
@@ -58,7 +58,7 @@ export function ProbabilityChart() {
       datasets: [
         {
           fill: true,
-          label: `Beta(${alpha}, ${beta})`,
+          label: `Beta(${alpha}, ${beta}) Limit`,
           data: normalizedPoints,
           borderColor: 'rgb(170, 59, 255)',
           backgroundColor: 'rgba(170, 59, 255, 0.2)',
@@ -106,14 +106,17 @@ export function ProbabilityChart() {
 
   return (
     <div className="w-full max-w-4xl mx-auto p-6 bg-white dark:bg-[#16171d] rounded-xl shadow-xl border border-gray-200 dark:border-gray-800 mt-6">
-      <h2 className="text-xl font-bold tracking-tight text-gray-900 dark:text-gray-100 mb-4">Probability Curve</h2>
+      <div className="flex justify-between items-center mb-4">
+        <h2 className="text-xl font-bold tracking-tight text-gray-900 dark:text-gray-100">Theoretical Probability Curve</h2>
+        <span className="text-xs font-mono text-purple-500 bg-purple-100 dark:bg-purple-900/30 px-2 py-1 rounded">Beta(α, β) infinite limit</span>
+      </div>
       <div className="h-48 w-full w-full relative">
         <Line options={options} data={data} />
       </div>
       <div className="mt-4 flex justify-between items-center text-sm text-gray-500 dark:text-gray-400">
-        <span>0 (Total Failure)</span>
-        <span className="font-semibold text-gray-700 dark:text-gray-300">Expected Average: {mean.toFixed(2)}</span>
-        <span>1 (Perfect Success)</span>
+        <span>0 (Total Failure Limit)</span>
+        <span className="font-semibold text-gray-700 dark:text-gray-300">Expected Limit Average: {mean.toFixed(2)}</span>
+        <span>1 (Perfect Success Limit)</span>
       </div>
     </div>
   );
