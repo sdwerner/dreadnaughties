@@ -1,55 +1,51 @@
-# On-Chain Feasibility of the Bayesian Beta Engine
+# On-Chain Infrastructure: L2 Selection & Gas Analysis
 
-Running the Dreadnaughties game engine entirely on-chain (e.g., as a Solidity smart contract) presents unique challenges and fascinating opportunities. 
+## The Problem
 
-Can this dynamic work on-chain? **Yes, but it requires specific mathematical adaptations.**
+Executing a 5-round Polya Urn combat loop on-chain requires `keccak256` hashing per round, state updates, and cross-contract calls to `OptionsMarket`. Based on Hardhat gas profiling:
 
-## The Core Challenge: Floating-Point Math
+| Function | Gas Cost | ETH L1 (30 gwei) | Base L2 (~$0.001/tx) | Arbitrum (~$0.003/tx) |
+|:---|:---|:---|:---|:---|
+| `executeAttack` | ~270,000 | ~$2.50 | ~$0.01 | ~$0.03 |
+| `mintOption` | ~130,000 | ~$1.20 | ~$0.005 | ~$0.01 |
+| `exerciseOption` | ~85,000 | ~$0.80 | ~$0.003 | ~$0.008 |
+| `setHuntingGrounds` | ~47,000 | ~$0.44 | ~$0.002 | ~$0.004 |
 
-The EVM (Ethereum Virtual Machine) and most smart contract environments **do not natively support floating-point arithmetic**. 
+> On Ethereum L1, a single battle costs ~$2.50 in gas. This is untenable for a game where wagers may be $1–$10 worth of `$DREAD`.
 
-Our current JavaScript and Python implementations rely heavily on floating-point numbers to generate distributions (e.g., calculating $Beta(3, 1)$ requires evaluating complex integrals/gamma functions and dealing with floats like `0.75123`).
+## L2 Selection Criteria
 
-## How to Adapt the Math for On-Chain Execution
+1. **Gas Cost:** Must support sub-$0.05 transactions for core gameplay loops.
+2. **EVM Compatibility:** Full EVM equivalence to avoid rewriting Solidity contracts.
+3. **VRF Availability:** Must have native or easily integrated verifiable randomness (Chainlink VRF, Gelato VRF, or native).
+4. **Ecosystem:** Active developer community and existing DeFi/gaming infrastructure.
+5. **Finality Speed:** Fast enough for real-time combat (~2-5 second finality).
 
-To make the Bayesian model work in a smart contract, we must use **Fixed-Point Math approximations** or **Pre-computed Lookups**.
+## Candidates
 
-### Solution 1: Taylor Series Expansions (Fixed-Point Math)
-Libraries like **PRBMath** (by Paul R. Berg) allow advanced mathematical operations (logarithms, exponentials) in Solidity using fixed-point numbers (e.g., $10^{18}$ representing the decimal $1.0$).
-*   **Feasibility:** Moderate. We can write an approximation of the Beta inverse cumulative distribution function (CDF) in Solidity. 
-*   **Gas Cost:** High. Calculating transcendental functions on-chain is extremely gas-intensive.
+### Base (Recommended for MVP)
+- **Gas:** ~$0.001-$0.01 per transaction (OP Stack)
+- **EVM:** Full equivalence
+- **VRF:** Chainlink VRF v2.5 available, Gelato VRF available
+- **Ecosystem:** Large, growing gaming ecosystem (Onchain Summer, Farcaster integration)
+- **Finality:** ~2 seconds
+- **Verdict:** ✅ Best balance of cost, tooling, and community for MVP launch.
 
-### Solution 2: The Urn Model (Discrete Approximation)
-The Beta distribution is the continuous version of the discrete **Polya Urn model**. 
-Instead of calculating complex continuous curves, we can model combat as drawing colored balls from an urn:
-*   $\alpha$ = Number of "Hit" balls in the urn.
-*   $\beta$ = Number of "Miss" balls in the urn.
-*   The contract generates a random integer and checks if it hits a "Hit" ball.
-*   **Feasibility:** Very High. EVMs are excellent at discrete integer math. 
-*   **Gas Cost:** Very Low. 
+### Arbitrum
+- **Gas:** ~$0.003-$0.03 per transaction (Nitro)
+- **EVM:** Full equivalence
+- **VRF:** Chainlink VRF v2.5 available
+- **Ecosystem:** Largest L2 by TVL, strong DeFi ecosystem
+- **Finality:** ~250ms (Arbitrum One)
+- **Verdict:** ✅ Strong fallback. Higher gas than Base but deeper liquidity.
 
-### Solution 3: Off-Chain Computation with ZK-Proofs
-If the continuous Beta math is strictly necessary for gameplay nuance, we execute the math *off-chain* and verify it *on-chain*.
-*   The player submits their loadout ($\alpha, \beta$).
-*   An off-chain backend (or the player's browser) generates the random roll, computes the Beta distribution result, and generates a Zero-Knowledge Proof (zk-SNARK/STARK) proving the math was done correctly.
-*   The smart contract simply verifies the proof in $O(1)$ time.
-*   **Feasibility:** High (via platforms like Axiom or Risc0).
-*   **Gas Cost:** Low to verify.
+### Starknet
+- **Gas:** Very low (~$0.001)
+- **EVM:** ❌ Requires rewriting in Cairo
+- **VRF:** Native VRF available
+- **Ecosystem:** Growing gaming ecosystem (Loot Survivor, Realms)
+- **Verdict:** ⚠️ Excellent for a fully native build, but requires complete contract rewrite. Not suitable for MVP timeline.
 
-## Sourcing Randomness (RNG)
+## Recommendation
 
-A Bayesian model requires an unpredictable pseudo-random number to draw from the distribution curve.
-
-*   You **cannot** use `block.timestamp` or `blockhash` in Solidity, as miners/validators can manipulate these values to guarantee a win.
-*   **The Solution:** We must integrate an oracle like **Chainlink VRF** (Verifiable Random Function). 
-    *   **Workflow:** Player clicks "Attack". The contract requests a random number from Chainlink. Next block, Chainlink provides a cryptographically secure random `uint256`. The contract uses this `uint256` to pick from the Polya Urn (or input into the fixed-point Beta inverse CDF) and resolves the battle.
-
-## Conclusion and Architecture Recommendation
-
-The Dreadnaughties engine **is completely viable on-chain**, provided we adopt the following architecture for a V1:
-
-1.  **State Layer (Smart Contracts):** Define $\alpha$ and $\beta$ as simple `uint256` integers. Track component ownership as ERC-1155 tokens.
-2.  **Combat Resolution (The Urn Approximation):** Instead of calculating complex floating-point integrals, simplify the Beta draw to an integer-based weighted random draw (Polya Urn model), which is mathematically identical in outcome but costs pennies in gas.
-3.  **Randomness:** Use Chainlink VRF to resolve the combat reliably.
-
-This makes the engine 100% decentralized, fully verifiable, and economically secure for `$DREAD` token wagering.
+**Deploy to Base for MVP.** Migrate contracts as-is with Chainlink VRF v2.5 integration. Evaluate Starknet for a future "V2" build if the game's computational needs outgrow the OP Stack.

@@ -1,47 +1,54 @@
-# Combat Architecture: Epochs & Resolution
+# Combat Architecture: The Polya Urn Engine
 
-The Dreadnaughties Bayesian engine can be expanded from a simple "single roll" resolution into a deep, strategic, multi-round combat system using Epochs and Hitpoints.
+All combat in Dreadnaughties is resolved through the **5-Round Polya Urn** model. This document defines the canonical rules for how battles are initiated, resolved, and rewarded.
 
-## 1. Time Scaling: The Epoch System
+## 1. Core Rule: The Urn Resets Per Battle
 
-Instead of a battle resolving instantly in one block, we introduce **Epochs** (e.g., 1 Epoch = 1 Ethereum Block, or 1 in-game Turn).
+> **IMPORTANT:** The Polya Urn state is **ephemeral**. It is initialized fresh at the start of every battle using the Attacker's Alpha and the Defender's Beta, and is discarded after the 5 rounds conclude. Winning a battle does **not** permanently add balls to a player's urn. All permanent stat changes must occur through the Forge (burning `$DREAD` to upgrade components).
 
-This allows for deep strategic depth and "Information Warfare."
-*   **The Setup:** Both players lock their Dreadnaughtie into the Arena contract.
-*   **The Engagement (e.g., 5 Epochs):** Every Epoch, the contract draws a new ball from the combined $Beta$ Urn for each ship's weapon systems.
-*   **The Reveal:** Players do not know *exactly* what the opponent's stats are. They only see the *results* of the Epoch draws.
-*   **Hedging Mid-Battle:** If you see your opponent land two critical hits in Epoch 1 and 2, the AMM automatically reprices the Arrow-Debreu tokens. You can buy "Defeat Insurance" mid-battle at a premium, or choose to "Retreat" and forfeit a portion of your wager rather than lose your ship.
+This design prevents the "snowball effect" where early winners become unbeatable, and ensures the diminishing-returns curve of the upgrade system remains the sole path to power.
 
----
+## 2. Battle Resolution (5-Round Draw)
 
-## 2. Delayed Resolution: Torpedo Mechanics
+1. **Urn Initialization:** The smart contract creates a temporary urn:
+   - **Red Balls** = Attacker's total Alpha (base hull α + equipped Gun components)
+   - **Blue Balls** = Defender's total Beta (base hull β + equipped Protection components)
 
-A Torpedo fired in Epoch $X$ that arrives in Epoch $X+Y$ is a brilliant mechanic that perfectly utilizes the Blockchain's state machine.
+2. **Drawing Phase (5 Rounds):** Each round:
+   - A random ball is drawn from the urn.
+   - The ball is returned, and **one additional ball of the same color** is added (reinforcement).
+   - This means within a single battle, momentum can shift — but only temporarily.
 
-*   **The Action:** In Epoch 1, Player A spends an action (or a consumable NFT) to fire a "Heavy Torpedo".
-*   **The Delay:** The Smart Contract registers a "Pending Event" scheduled for Epoch 4 (3 Epochs later).
-*   **The Counter-Play:** Player B sees the pending Torpedo on-chain. They now have 3 Epochs to react.
-    *   Do they use a "Thruster Burst" consumable to temporarily increase their $\beta$ (Evasion) for Epoch 4?
-    *   Do they fire "Point Defense Lasers," which shifts the Torpedo's independent $Beta$ draw toward a miss?
-*   **The Impact:** In Epoch 4, the Smart Contract rolls a specific, isolated Beta draw exclusively for that Torpedo to see if it hits, dealing massive structural damage if it succeeds.
+3. **Victory Condition:** The attacker wins if they draw **≥ 3 Red balls** out of 5 rounds (`WIN_THRESHOLD_RED_DRAWN = 3`).
 
----
+4. **Urn Disposal:** After resolution, the urn is discarded. No permanent stat changes occur.
 
-## 3. Battle Outcome Resolution: Individual Hitpoints
+## 3. The Stakes
 
-A binary "Win/Loss" on a single draw is too simple for a game with delays and counter-play. We must introduce **Hitpoints (HP) / Structural Integrity**.
+### Base Burn Fee (Deflationary Mechanic)
+Every attack burns **5% of the attacker's stake** regardless of outcome. This ensures every battle contributes to token deflation.
 
-*   **The Hull:** Every ERC-721 Hull has a base HP (e.g., 1000 HP for a Frigate, 5000 HP for a Dreadnought).
-*   **The Draw:** When the Smart Contract draws a Red Ball (Success) for your Guns, it doesn't just mean "You Win". It dictates *how much damage* you deal this Epoch.
-    *   **The Math:** We can map the Beta draw result ($0.0$ to $1.0$) directly to a damage scalar. 
-    *   If your Base Damage is 100, and your curve draws a `0.85` (a great hit), you deal 85 Damage to the enemy's HP.
-    *   If you draw a `0.10` (a glancing blow), you only deal 10 Damage.
-*   **Incentive Alignment:** If both players survive all 5 Epochs, the player with the *highest remaining % of HP* wins the prize pool.
+### Attacker Wins
+- The payout scales with how dominant the victory was (ratio of red balls drawn).
+- The attacker receives their remaining stake (minus burn fee) plus a percentage of the defender's accumulated yield.
 
-## 4. The Stakes (Incentivization)
+### Attacker Loses
+- A portion of the attacker's remaining stake is awarded to the defender, scaled by defensive performance (ratio of blue balls drawn).
 
-Why bring a highly-upgraded Dreadnaughtie into the Arena?
+### Ship Damage (Dry Dock)
+When a ship loses a battle, it is **Disabled** (not destroyed). The owner must pay `$DREAD` in the Dry Dock to reactivate it and resume passive yield generation. See `staking_mechanics.md` for details.
 
-1.  **Wagering:** Both players put up 500 `$DREAD` to fight. Winner takes 95% of the pot.
-2.  **Loot Drops:** Winning a battle has a small % chance to mint a new, rare Component NFT directly to your Hull's ERC-6551 wallet.
-3.  **The Ultimate Risk (Ship Destruction):** If a ship reaches 0 HP before the Epochs end, it is "Destroyed". The ERC-721 NFT is permanently **Burned**, removing supply from the market and making all remaining Dreadnaughties more valuable. The victor loots the wreckage for massive `$DREAD` rewards.
+## 4. Time Scaling: The Epoch System (Future)
+
+For deeper strategic play, the 5-round system can be expanded into **Epochs** (e.g., 1 Epoch = 1 block or 1 in-game turn). This introduces:
+- **Information Warfare:** Players see draw results per-epoch but not opponent stats.
+- **Mid-Battle Hedging:** The prediction market (Arrow-Debreu tokens) can reprice between epochs.
+- **Retreat Mechanic:** A player can forfeit a portion of their wager to withdraw rather than risk total loss.
+
+## 5. Advanced Mechanics (Post-MVP)
+
+### Torpedo Mechanics (Delayed Resolution)
+A Torpedo fired in Epoch X arrives in Epoch X+Y. The defender has Y epochs to react with consumables or defensive abilities. On arrival, the torpedo resolves via its own isolated Polya Urn draw.
+
+### Hitpoint System
+Instead of binary win/loss, each successful draw deals damage proportional to the draw result (mapped from 0.0–1.0 to a damage scalar). The player with the highest remaining HP percentage wins.
