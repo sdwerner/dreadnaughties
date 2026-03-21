@@ -11,22 +11,26 @@ export const BATTLE_ROUNDS = 5;
 // e.g., for 5 rounds, > 2.5 means 3, 4, or 5 Red balls drawn to win.
 export const WIN_THRESHOLD_RED_BALLS = 3;
 
-export function calculateTheoreticalWinProbability(alpha, beta) {
-  // We'll use the mean as a proxy for the simplified "Expected Win Rate" for now,
-  // since this mirrors the continuous distribution limit.
+/**
+ * Calculates the Beta distribution mean as the theoretical continuous limit.
+ * Note: This is NOT the actual win probability in the discrete Polya Urn.
+ * As rounds → ∞, the Polya Urn converges to Beta(α, β), so this serves
+ * as a useful theoretical reference point.
+ */
+export function calculateBetaLimitMean(alpha, beta) {
   const expectedMean = getBetaMean(alpha, beta);
   return {
-    equation: `mean = α / (α + β)`,
-    steps: `mean = ${alpha} / (${alpha} + ${beta})`,
+    equation: `limit mean = α / (α + β)`,
+    steps: `limit mean = ${alpha} / (${alpha} + ${beta})`,
     result: expectedMean
   };
 }
 
-export function calculateTheoreticalVariance(alpha, beta) {
+export function calculateBetaLimitVariance(alpha, beta) {
   const variance = getBetaVariance(alpha, beta);
   return {
-    equation: `variance = (α * β) / ((α + β)² * (α + β + 1))`,
-    steps: `variance = (${alpha} * ${beta}) / ((${alpha} + ${beta})² * (${alpha} + ${beta} + 1))`,
+    equation: `limit variance = (α × β) / ((α + β)² × (α + β + 1))`,
+    steps: `limit variance = (${alpha} × ${beta}) / ((${alpha} + ${beta})² × (${alpha} + ${beta} + 1))`,
     result: variance
   };
 }
@@ -61,7 +65,8 @@ export function simulateCombatTurn(initialAlpha, initialBeta) {
   }
 
   const isVictory = redDrawn >= WIN_THRESHOLD_RED_BALLS;
-  const meanCalc = calculateTheoreticalWinProbability(initialAlpha, initialBeta);
+  const discreteWinProb = calculateDiscreteWinProbability(initialAlpha, initialBeta);
+  const betaLimitMean = calculateBetaLimitMean(initialAlpha, initialBeta);
   
   return {
     alpha: initialAlpha,
@@ -70,8 +75,9 @@ export function simulateCombatTurn(initialAlpha, initialBeta) {
     result: isVictory ? 'Victory' : 'Defeat',
     timestamp: new Date().toLocaleTimeString(),
     transparentMath: {
-      meanCalc,
-      varianceCalc: calculateTheoreticalVariance(initialAlpha, initialBeta),
+      discreteWinProb,
+      betaLimitMean,
+      betaLimitVariance: calculateBetaLimitVariance(initialAlpha, initialBeta),
       rollThreshold: `>= ${WIN_THRESHOLD_RED_BALLS} Red Drawn for Victory`,
       drawSequence: drawSequence.join(', ')
     }
@@ -117,6 +123,22 @@ function factorialize(num) {
     result *= i;
   }
   return result;
+}
+
+/**
+ * Returns the full discrete outcome distribution for the Polya Urn.
+ * Array of { k, probability } for k = 0..BATTLE_ROUNDS red balls drawn.
+ */
+export function getPolyaUrnDistribution(alpha, beta) {
+  const distribution = [];
+  for (let k = 0; k <= BATTLE_ROUNDS; k++) {
+    distribution.push({
+      k,
+      probability: calculatePolyaUrnProbabilityExact(alpha, beta, BATTLE_ROUNDS, k),
+      isWin: k >= WIN_THRESHOLD_RED_BALLS
+    });
+  }
+  return distribution;
 }
 
 export function getStatContributionBreakdown(baseAlpha, baseBeta, equippedComponents) {
