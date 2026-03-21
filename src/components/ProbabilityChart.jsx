@@ -4,67 +4,50 @@ import {
   Chart as ChartJS,
   CategoryScale,
   LinearScale,
-  PointElement,
-  LineElement,
+  BarElement,
   Title,
   Tooltip,
-  Filler,
   Legend,
 } from 'chart.js';
-import { Line } from 'react-chartjs-2';
-import { calculateTheoreticalWinProbability } from '../engine/calculator';
+import { Bar } from 'react-chartjs-2';
+import { getPolyaUrnDistribution, calculateDiscreteWinProbability, calculateBetaLimitMean, BATTLE_ROUNDS, WIN_THRESHOLD_RED_BALLS } from '../engine/calculator';
 
 ChartJS.register(
   CategoryScale,
   LinearScale,
-  PointElement,
-  LineElement,
+  BarElement,
   Title,
   Tooltip,
-  Filler,
   Legend
 );
-
-// Very basic approximation of Beta PDF for visualization purposes
-// In a full app, we'd use a math library (like mathjs) or a custom Gamma approximation
-function approximateBetaPDF(x, alpha, beta) {
-  if (x === 0 || x === 1) return 0;
-  // This is a rough estimation of the curve shape, omitting the full Beta function coefficient
-  return Math.pow(x, alpha - 1) * Math.pow(1 - x, beta - 1);
-}
 
 export function ProbabilityChart() {
   const alpha = useGameStore((state) => state.getActiveStats().alpha);
   const beta = useGameStore((state) => state.getActiveStats().beta);
-  const mean = calculateTheoreticalWinProbability(alpha, beta).result;
+  const discreteWinProb = calculateDiscreteWinProbability(alpha, beta);
+  const betaLimitMean = calculateBetaLimitMean(alpha, beta).result;
 
   const data = useMemo(() => {
-    const labels = [];
-    const points = [];
-    
-    // Generate 50 points between 0 and 1
-    for (let i = 0; i <= 50; i++) {
-      const x = i / 50;
-      labels.push(x.toFixed(2));
-      points.push(approximateBetaPDF(x, alpha, beta));
-    }
-
-    // Normalize points so the chart looks consistent
-    const max = Math.max(...points) || 1;
-    const normalizedPoints = points.map(p => p / max);
+    const distribution = getPolyaUrnDistribution(alpha, beta);
 
     return {
-      labels,
+      labels: distribution.map(d => `${d.k} Red`),
       datasets: [
         {
-          fill: true,
-          label: `Beta(${alpha}, ${beta}) Limit`,
-          data: normalizedPoints,
-          borderColor: 'rgb(170, 59, 255)',
-          backgroundColor: 'rgba(170, 59, 255, 0.2)',
-          tension: 0.4,
-          pointRadius: 0,
+          label: 'P(k Red Drawn)',
+          data: distribution.map(d => d.probability),
+          backgroundColor: distribution.map(d =>
+            d.isWin
+              ? 'rgba(239, 68, 68, 0.7)'   // red for winning outcomes
+              : 'rgba(96, 165, 250, 0.7)'   // blue for losing outcomes
+          ),
+          borderColor: distribution.map(d =>
+            d.isWin
+              ? 'rgb(220, 38, 38)'
+              : 'rgb(59, 130, 246)'
+          ),
           borderWidth: 2,
+          borderRadius: 4,
         },
       ],
     };
@@ -78,28 +61,30 @@ export function ProbabilityChart() {
         display: false,
       },
       tooltip: {
-        enabled: false,
-      },
-      annotation: {
-        annotations: {
-          line1: {
-            type: 'line',
-            xMin: mean.toFixed(2),
-            xMax: mean.toFixed(2),
-            borderColor: 'rgb(75, 192, 192)',
-            borderWidth: 2,
-            borderDash: [5, 5],
+        callbacks: {
+          label: (context) => {
+            const prob = (context.parsed.y * 100).toFixed(1);
+            return `Probability: ${prob}%`;
           }
         }
-      }
+      },
     },
     scales: {
       x: {
-        grid: { display: false, color: 'rgba(255, 255, 255, 0.1)' },
-        ticks: { maxTicksLimit: 5 }
+        grid: { display: false },
+        ticks: {
+          color: 'rgb(156, 163, 175)',
+        }
       },
       y: {
-        display: false, // Hide Y axis as it's just relative probability density
+        beginAtZero: true,
+        ticks: {
+          callback: (value) => `${(value * 100).toFixed(0)}%`,
+          color: 'rgb(156, 163, 175)',
+        },
+        grid: {
+          color: 'rgba(156, 163, 175, 0.1)',
+        }
       },
     },
   };
@@ -107,16 +92,27 @@ export function ProbabilityChart() {
   return (
     <div className="w-full max-w-4xl mx-auto p-6 bg-white dark:bg-[#16171d] rounded-xl shadow-xl border border-gray-200 dark:border-gray-800 mt-6">
       <div className="flex justify-between items-center mb-4">
-        <h2 className="text-xl font-bold tracking-tight text-gray-900 dark:text-gray-100">Theoretical Probability Curve</h2>
-        <span className="text-xs font-mono text-purple-500 bg-purple-100 dark:bg-purple-900/30 px-2 py-1 rounded">Beta(α, β) infinite limit</span>
+        <h2 className="text-xl font-bold tracking-tight text-gray-900 dark:text-gray-100">Polya Urn Outcome Distribution</h2>
+        <span className="text-xs font-mono text-purple-500 bg-purple-100 dark:bg-purple-900/30 px-2 py-1 rounded">{BATTLE_ROUNDS}-round draw | win ≥ {WIN_THRESHOLD_RED_BALLS} Red</span>
       </div>
-      <div className="h-48 w-full w-full relative">
-        <Line options={options} data={data} />
+      <div className="h-56 w-full relative">
+        <Bar options={options} data={data} />
       </div>
-      <div className="mt-4 flex justify-between items-center text-sm text-gray-500 dark:text-gray-400">
-        <span>0 (Total Failure Limit)</span>
-        <span className="font-semibold text-gray-700 dark:text-gray-300">Expected Limit Average: {mean.toFixed(2)}</span>
-        <span>1 (Perfect Success Limit)</span>
+      <div className="mt-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 text-sm">
+        <div className="flex items-center gap-4">
+          <span className="flex items-center gap-1.5">
+            <span className="w-3 h-3 rounded-sm bg-red-500 inline-block"></span>
+            <span className="text-gray-600 dark:text-gray-400">Win (≥ {WIN_THRESHOLD_RED_BALLS} Red)</span>
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="w-3 h-3 rounded-sm bg-blue-400 inline-block"></span>
+            <span className="text-gray-600 dark:text-gray-400">Loss (&lt; {WIN_THRESHOLD_RED_BALLS} Red)</span>
+          </span>
+        </div>
+        <div className="text-right space-y-0.5">
+          <div className="font-semibold text-gray-700 dark:text-gray-300">Exact Win P: {(discreteWinProb * 100).toFixed(1)}%</div>
+          <div className="text-xs text-gray-500 dark:text-gray-400">Beta({alpha},{beta}) limit mean: {betaLimitMean.toFixed(3)}</div>
+        </div>
       </div>
     </div>
   );

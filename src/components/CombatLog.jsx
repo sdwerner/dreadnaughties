@@ -36,7 +36,7 @@ export function CombatLog() {
               <div className="flex items-center justify-between">
                 <div className="flex flex-col">
                   <span className="text-sm text-gray-500 dark:text-gray-400">{log.timestamp}</span>
-                  <span className="font-mono text-xs text-gray-400 dark:text-gray-500">Initial: {log.alpha} Red, {log.beta} Blue | Limit Mean: {(log.transparentMath.meanCalc.result * 100).toFixed(1)}%</span>
+                  <span className="font-mono text-xs text-gray-400 dark:text-gray-500">Urn: {log.alpha} Red, {log.beta} Blue | Exact Win P: {(log.transparentMath.discreteWinProb * 100).toFixed(1)}%</span>
                 </div>
                 <div className="flex items-center gap-6">
                   <div className="text-right">
@@ -66,10 +66,12 @@ export function CombatLog() {
                 <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700 font-mono text-xs text-gray-600 dark:text-gray-400 bg-gray-100/50 dark:bg-[#101115] p-3 rounded">
                    <div className="mb-2"><span className="text-indigo-500">Draw Sequence:</span> {log.transparentMath.drawSequence}</div>
                    <div className="mb-2"><span className="text-indigo-500">Win Criteria:</span> {log.transparentMath.rollThreshold}</div>
-                   <div className="mb-1"><span className="text-purple-500">Limit Mean:</span> {log.transparentMath.meanCalc.equation}</div>
-                   <div className="mb-2 ml-4 text-gray-500">=&gt; {log.transparentMath.meanCalc.steps} = {log.transparentMath.meanCalc.result.toFixed(4)}</div>
-                   <div className="mb-1"><span className="text-orange-500">Limit Variance:</span> {log.transparentMath.varianceCalc.equation}</div>
-                   <div className="ml-4 text-gray-500">=&gt; {log.transparentMath.varianceCalc.steps} = {log.transparentMath.varianceCalc.result.toFixed(4)}</div>
+                   <div className="mb-1"><span className="text-green-500">Exact Win P:</span> {(log.transparentMath.discreteWinProb * 100).toFixed(2)}%</div>
+                   <div className="mb-2 ml-4 text-gray-500">P(draw ≥ 3 Red in 5 rounds) from Polya Urn({log.alpha}, {log.beta})</div>
+                   <div className="mb-1"><span className="text-purple-500">Beta Limit Mean:</span> {log.transparentMath.betaLimitMean.equation}</div>
+                   <div className="mb-2 ml-4 text-gray-500">=&gt; {log.transparentMath.betaLimitMean.steps} = {log.transparentMath.betaLimitMean.result.toFixed(4)}</div>
+                   <div className="mb-1"><span className="text-orange-500">Beta Limit Variance:</span> {log.transparentMath.betaLimitVariance.equation}</div>
+                   <div className="ml-4 text-gray-500">=&gt; {log.transparentMath.betaLimitVariance.steps} = {log.transparentMath.betaLimitVariance.result.toFixed(4)}</div>
                 </div>
               )}
             </div>

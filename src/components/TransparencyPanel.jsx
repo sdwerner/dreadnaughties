@@ -1,14 +1,21 @@
 import { useGameStore } from '../engine/gameState';
-import { getStatContributionBreakdown, calculateTheoreticalWinProbability, calculateTheoreticalVariance } from '../engine/calculator';
-import { cn } from './Shipyard';
+import { getStatContributionBreakdown, calculateDiscreteWinProbability, calculateBetaLimitMean, calculateBetaLimitVariance, BATTLE_ROUNDS, WIN_THRESHOLD_RED_BALLS } from '../engine/calculator';
+
 
 export function TransparencyPanel() {
   const { baseAlpha, baseBeta, equipped } = useGameStore();
   const { alpha: activeAlpha, beta: activeBeta } = useGameStore(state => state.getActiveStats());
   
   const breakdown = getStatContributionBreakdown(baseAlpha, baseBeta, equipped);
-  const winProb = calculateTheoreticalWinProbability(activeAlpha, activeBeta);
-  const variance = calculateTheoreticalVariance(activeAlpha, activeBeta);
+
+  // Discrete Polya Urn probabilities (the actual game math)
+  const strikeWinProb = calculateDiscreteWinProbability(activeAlpha, 1);
+  const survivalProb = 1 - calculateDiscreteWinProbability(1, activeBeta);
+
+  // Beta distribution limits (theoretical connection)
+  const strikeLimitMean = calculateBetaLimitMean(activeAlpha, 1);
+  const survivalLimitMean = calculateBetaLimitMean(1, activeBeta);
+  const limitVariance = calculateBetaLimitVariance(activeAlpha, activeBeta);
 
   return (
     <div className="w-full max-w-4xl mx-auto p-6 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl mt-6 font-mono text-sm text-slate-300">
@@ -61,36 +68,52 @@ export function TransparencyPanel() {
           </div>
         </div>
 
-        {/* Right Col: PDF Math */}
+        {/* Right Col: Polya Urn Math + Beta Limit Theory */}
         <div className="space-y-6">
           <div>
-            <h3 className="text-slate-400 mb-2 uppercase tracking-wide text-xs">Offensive Limit Math (Strike Success)</h3>
+            <h3 className="text-slate-400 mb-2 uppercase tracking-wide text-xs">Polya Urn: Strike Success</h3>
             <div className="bg-slate-800 bg-opacity-50 rounded p-3 space-y-2 border border-slate-700/50">
-              <div className="text-purple-400">mean = {activeAlpha} / ({activeAlpha} + 1)</div>
+              <div className="text-red-400">P(draw ≥ {WIN_THRESHOLD_RED_BALLS} Red in {BATTLE_ROUNDS} rounds)</div>
+              <div className="text-slate-400 text-xs">Urn({activeAlpha} Red, 1 Blue) with reinforcement</div>
               <div className="border-t border-slate-700/50 mt-2 pt-2 flex justify-between">
-                <span className="text-slate-200">Strike Limit Roll Mean</span>
-                <span className="text-purple-400 font-bold">{(activeAlpha / (activeAlpha + 1)).toFixed(4)}</span>
+                <span className="text-slate-200">Exact Win Probability</span>
+                <span className="text-red-400 font-bold">{(strikeWinProb * 100).toFixed(2)}%</span>
               </div>
             </div>
           </div>
 
           <div>
-            <h3 className="text-slate-400 mb-2 uppercase tracking-wide text-xs">Defensive Limit Math (Survival Rate)</h3>
+            <h3 className="text-slate-400 mb-2 uppercase tracking-wide text-xs">Polya Urn: Survival Rate</h3>
             <div className="bg-slate-800 bg-opacity-50 rounded p-3 space-y-2 border border-slate-700/50">
-              <div className="text-orange-400">mean = 1 - (1 / (1 + {activeBeta}))</div>
+              <div className="text-blue-400">1 - P(enemy draws ≥ {WIN_THRESHOLD_RED_BALLS} Red in {BATTLE_ROUNDS} rounds)</div>
+              <div className="text-slate-400 text-xs">Urn(1 Red, {activeBeta} Blue) with reinforcement</div>
               <div className="border-t border-slate-700/50 mt-2 pt-2 flex justify-between">
-                <span className="text-slate-200">Survival Limit Roll Mean</span>
-                <span className="text-orange-400 font-bold">{(1 - (1 / (1 + activeBeta))).toFixed(4)}</span>
+                <span className="text-slate-200">Exact Survival Probability</span>
+                <span className="text-blue-400 font-bold">{(survivalProb * 100).toFixed(2)}%</span>
               </div>
             </div>
           </div>
-          
-          <div className="bg-slate-800/80 rounded p-4 border border-indigo-500/30 shadow-[0_0_15px_rgba(99,102,241,0.1)]">
-             <div className="text-xs text-indigo-400 uppercase tracking-widest mb-1">Combat Resolution Overview</div>
-             <p className="text-slate-300">
-               <span className="text-red-400 font-bold">Strike Success</span> simulates your Alpha vs Baseline Enemy Beta (1).<br/>
-               <span className="text-blue-400 font-bold">Survival Rate</span> simulates Baseline Enemy Alpha (1) vs your Beta.
+
+          <div className="bg-slate-800/80 rounded p-4 border border-purple-500/30 shadow-[0_0_15px_rgba(147,51,234,0.1)]">
+             <div className="text-xs text-purple-400 uppercase tracking-widest mb-2">Theoretical Connection: Beta Distribution</div>
+             <p className="text-slate-400 text-xs mb-3">
+               As rounds → ∞, the Polya Urn converges to Beta(α, β). The limit mean
+               serves as an asymptotic reference for the discrete engine.
              </p>
+             <div className="space-y-2 text-xs">
+               <div className="flex justify-between">
+                 <span className="text-slate-300">Strike Limit: Beta({activeAlpha},1) mean</span>
+                 <span className="text-purple-400">{strikeLimitMean.result.toFixed(4)}</span>
+               </div>
+               <div className="flex justify-between">
+                 <span className="text-slate-300">Survival Limit: 1 - Beta(1,{activeBeta}) mean</span>
+                 <span className="text-purple-400">{(1 - survivalLimitMean.result).toFixed(4)}</span>
+               </div>
+               <div className="flex justify-between">
+                 <span className="text-slate-300">{limitVariance.equation}</span>
+                 <span className="text-purple-400">{limitVariance.result.toFixed(6)}</span>
+               </div>
+             </div>
           </div>
         </div>
       </div>

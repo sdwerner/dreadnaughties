@@ -1,25 +1,25 @@
 import { useGameStore } from '../engine/gameState';
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
-import { calculateDiscreteWinProbability, calculateTheoreticalWinProbability } from '../engine/calculator';
+import { calculateDiscreteWinProbability, calculateBetaLimitMean } from '../engine/calculator';
 
 export function cn(...inputs) {
   return twMerge(clsx(inputs));
 }
 
 export function Shipyard() {
-  const { inventory, equipped, equipComponent, unequipComponent } = useGameStore();
+  const { inventory, equipped, equipComponent, unequipComponent, simulateCombat } = useGameStore();
 
   const activeAlpha = useGameStore((state) => state.getActiveStats().alpha);
   const activeBeta = useGameStore((state) => state.getActiveStats().beta);
   // Strike Success: My Alpha vs Baseline Enemy Beta (1)
   const strikeSuccessDiscrete = calculateDiscreteWinProbability(activeAlpha, 1);
-  const strikeSuccessLimit = calculateTheoreticalWinProbability(activeAlpha, 1).result;
+  const strikeSuccessLimit = calculateBetaLimitMean(activeAlpha, 1).result;
 
   // Survival Rate: Baseline Enemy Alpha (1) vs My Beta
   // (1 minus the enemy's chance to win against me)
   const survivalRateDiscrete = 1 - calculateDiscreteWinProbability(1, activeBeta);
-  const survivalRateLimit = 1 - calculateTheoreticalWinProbability(1, activeBeta).result;
+  const survivalRateLimit = 1 - calculateBetaLimitMean(1, activeBeta).result;
   return (
     <div className="w-full max-w-4xl mx-auto p-6 bg-white dark:bg-[#16171d] rounded-xl shadow-xl border border-gray-200 dark:border-gray-800">
       <div className="flex flex-col md:flex-row gap-8">
@@ -35,12 +35,12 @@ export function Shipyard() {
             <div className="p-4 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-100 dark:border-gray-800">
               <div className="text-sm font-medium text-gray-500 dark:text-gray-400">Targeting (Alpha)</div>
               <div className="text-3xl font-bold text-red-600 dark:text-red-400">{activeAlpha}</div>
-              <div className="text-xs text-gray-400 mt-1">Initial Red Balls</div>
+              <div className="text-xs text-gray-400 mt-1">Initial Red Balls in Urn</div>
             </div>
             <div className="p-4 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-100 dark:border-gray-800">
               <div className="text-sm font-medium text-gray-500 dark:text-gray-400">Armor (Beta)</div>
               <div className="text-3xl font-bold text-blue-600 dark:text-blue-400">{activeBeta}</div>
-              <div className="text-xs text-gray-400 mt-1">Initial Blue Balls</div>
+              <div className="text-xs text-gray-400 mt-1">Initial Blue Balls in Urn</div>
             </div>
           </div>
           
@@ -48,20 +48,20 @@ export function Shipyard() {
             <div className="p-4 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-100 dark:border-red-800/30">
                <div className="text-sm font-medium text-red-600 dark:text-red-400">Strike Success (Offense)</div>
                <div className="text-4xl font-bold text-red-700 dark:text-red-300">{(strikeSuccessDiscrete * 100).toFixed(1)}%</div>
-               <div className="text-xs text-red-500 mt-1">vs Baseline Enemy Armor (1 Beta)</div>
+               <div className="text-xs text-red-500 mt-1">P(draw ≥ 3 Red in 5 rounds) vs Baseline Enemy (1 Blue)</div>
                
                <div className="mt-3 pt-3 border-t border-red-200 dark:border-red-800/50">
-                 <div className="text-xs font-medium text-gray-500 dark:text-gray-400">Limit Mean: {(strikeSuccessLimit * 100).toFixed(1)}%</div>
+                 <div className="text-xs font-medium text-gray-500 dark:text-gray-400">Beta({activeAlpha},1) Limit Mean: {(strikeSuccessLimit * 100).toFixed(1)}%</div>
                </div>
             </div>
 
             <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-100 dark:border-blue-800/30">
                <div className="text-sm font-medium text-blue-600 dark:text-blue-400">Survival Rate (Defense)</div>
                <div className="text-4xl font-bold text-blue-700 dark:text-blue-300">{(survivalRateDiscrete * 100).toFixed(1)}%</div>
-               <div className="text-xs text-blue-500 mt-1">vs Baseline Enemy Firepower (1 Alpha)</div>
+               <div className="text-xs text-blue-500 mt-1">1 - P(enemy draws ≥ 3 Red) vs Baseline Enemy (1 Red)</div>
                
                <div className="mt-3 pt-3 border-t border-blue-200 dark:border-blue-800/50">
-                 <div className="text-xs font-medium text-gray-500 dark:text-gray-400">Limit Mean: {(survivalRateLimit * 100).toFixed(1)}%</div>
+                 <div className="text-xs font-medium text-gray-500 dark:text-gray-400">1 - Beta(1,{activeBeta}) Limit Mean: {(survivalRateLimit * 100).toFixed(1)}%</div>
                </div>
             </div>
           </div>
@@ -86,8 +86,8 @@ export function Shipyard() {
                   <div>
                     <div className="font-semibold text-gray-900 dark:text-gray-100">{item.name}</div>
                     <div className="text-sm text-gray-500 dark:text-gray-400 flex gap-3 mt-1">
-                      {item.dAlpha > 0 && <span className="text-red-600 dark:text-red-400">+{item.dAlpha} Alpha</span>}
-                      {item.dBeta > 0 && <span className="text-blue-600 dark:text-blue-400">+{item.dBeta} Beta</span>}
+                      {item.dAlpha > 0 && <span className="text-red-600 dark:text-red-400">+{item.dAlpha} Alpha (Red)</span>}
+                      {item.dBeta > 0 && <span className="text-blue-600 dark:text-blue-400">+{item.dBeta} Beta (Blue)</span>}
                     </div>
                   </div>
                   
@@ -108,6 +108,12 @@ export function Shipyard() {
           </div>
         </div>
 
+        <button
+          onClick={() => simulateCombat()}
+          className="w-full py-3 px-6 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-lg transition-colors cursor-pointer shadow-md mt-6"
+        >
+          Simulate 5-Round Polya Urn Attack
+        </button>
       </div>
     </div>
   );
